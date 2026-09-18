@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.covid_19.dto.ConfirmedResponseDto;
+import com.example.covid_19.dto.ConfirmedSingleDayDto;
 import com.example.covid_19.dto.ConfirmedSummaryDto;
 import com.example.covid_19.service.ConfirmedService;
 
@@ -41,5 +42,15 @@ public class ConfirmedController {
             @RequestParam(required = false) List<Long> geographyIds) {
 
         return confirmedService.getSummary(startDate, endDate, geographyIds);
+    }
+
+    // 範例網址 1 (全區單日): /api/confirmed/daily?date=2026-09-17
+    // 範例網址 2 (指定地區單日): /api/confirmed/daily?date=2026-09-17&geographyIds=1,2
+    @GetMapping("/daily")
+    public ConfirmedSingleDayDto getDailyByDate(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) List<Long> geographyIds) {
+
+        return confirmedService.getDailySummaryByDate(date, geographyIds);
     }
 }

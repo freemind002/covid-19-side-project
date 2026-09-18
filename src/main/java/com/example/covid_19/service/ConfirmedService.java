@@ -10,6 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.covid_19.dao.ConfirmedRepository;
 import com.example.covid_19.dto.ConfirmedResponseDto;
+import com.example.covid_19.dto.ConfirmedSingleDayDto;
 import com.example.covid_19.dto.ConfirmedSummaryDto;
 import com.example.covid_19.model.Confirmed;
 
@@ -46,5 +47,15 @@ public class ConfirmedService {
         List<Long> targetIds = (geographyIds == null || geographyIds.isEmpty()) ? null : geographyIds;
 
         return confirmedRepository.getConfirmedSummary(startDate, endDate, targetIds);
+    }
+
+    public ConfirmedSingleDayDto getDailySummaryByDate(LocalDate targetDate, List<Long> geographyIds) {
+        if (targetDate == null) {
+            throw new IllegalArgumentException("必須指定查詢日期！");
+        }
+
+        List<Long> targetIds = (geographyIds == null || geographyIds.isEmpty()) ? null : geographyIds;
+
+        return confirmedRepository.getConfirmedByDate(targetDate, targetIds);
     }
 }
