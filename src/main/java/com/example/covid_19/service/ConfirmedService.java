@@ -73,12 +73,43 @@ public class ConfirmedService {
     public Page<TableRecordDto> getTablePage(
             LocalDate startDate, LocalDate endDate, List<Long> geographyIds,
             int page, int size, List<String> sortParams) {
+        // 防呆驗證：如果日期有填，且開始日期大於結束日期，直接擋下！
+        if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "開始日期不能大於結束日期！");
+        }
 
         // 1. 判斷是否有給地區
         int hasGeographyIds = (geographyIds == null || geographyIds.isEmpty()) ? 0 : 1;
         List<Long> targetIds = (hasGeographyIds == 0) ? List.of(-1L) : geographyIds;
 
-        // 2. 處理排序邏輯
+        // 2. 建立共用的參數來源
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("startDate", startDate);
+        params.addValue("endDate", endDate);
+        params.addValue("hasGeographyIds", hasGeographyIds);
+        params.addValue("geographyIds", targetIds);
+
+        // 3. 先計算總筆數 (Count Query) 以得知總頁數
+        String countSql = "SELECT COUNT(*) FROM confirmed c " +
+                "WHERE c.updated_on BETWEEN :startDate AND :endDate " +
+                "AND (:hasGeographyIds = 0 OR c.geography_id IN (:geographyIds))";
+        Long total = jdbcTemplate.queryForObject(countSql, params, Long.class);
+        if (total == null)
+            total = 0L;
+
+        // 💡 4. 計算總頁數並檢查 page 是否合法
+        // 數學公式：ceil(total / size)
+        long totalPages = (total == 0) ? 0 : (long) Math.ceil((double) total / size);
+
+        // 如果資料庫有資料，但傳入的 page 已經大於或等於總頁數 (代表超過範圍)
+        // 或者資料庫完全沒資料但傳入的 page > 0
+        if (total > 0 && page >= totalPages) {
+            throw new IllegalArgumentException("請求的頁碼 (page: " + page + ") 超出範圍，最大有效頁碼為 " + (totalPages - 1));
+        } else if (total == 0 && page > 0) {
+            throw new IllegalArgumentException("目前查無資料，頁碼只能為 0");
+        }
+
+        // 5. 處理排序邏輯 (同前)
         List<String> orderClauses = new ArrayList<>();
         if (sortParams == null || sortParams.isEmpty()) {
             orderClauses.add("c.updated_on ASC");
@@ -89,7 +120,6 @@ public class ConfirmedService {
                 String field = parts[0].trim();
                 String direction = (parts.length > 1 && "desc".equalsIgnoreCase(parts[1].trim())) ? "DESC" : "ASC";
 
-                // 💡 關鍵：明確對應到 SQL 的實體與欄位別名
                 String dbColumn = switch (field) {
                     case "updated_on", "updatedOn" -> "c.updated_on";
                     case "geography_id", "geographyId" -> "c.geography_id";
@@ -106,29 +136,13 @@ public class ConfirmedService {
             }
         }
 
-        // 如果都沒有對應到合法的排序欄位，給個預設排序
         if (orderClauses.isEmpty()) {
             orderClauses.add("c.updated_on ASC");
         }
 
         String orderBySql = " ORDER BY " + String.join(", ", orderClauses);
 
-        // 3. 建立共用的參數來源
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("startDate", startDate);
-        params.addValue("endDate", endDate);
-        params.addValue("hasGeographyIds", hasGeographyIds);
-        params.addValue("geographyIds", targetIds);
-
-        // 4. 計算總筆數 (Count Query)
-        String countSql = "SELECT COUNT(*) FROM confirmed c " +
-                "WHERE c.updated_on BETWEEN :startDate AND :endDate " +
-                "AND (:hasGeographyIds = 0 OR c.geography_id IN (:geographyIds))";
-        Long total = jdbcTemplate.queryForObject(countSql, params, Long.class);
-        if (total == null)
-            total = 0L;
-
-        // 5. 查詢分頁資料 (Data Query)
+        // 6. 查詢分頁資料 (Data Query)
         String dataSql = "SELECT " +
                 "c.updated_on AS updatedOn, " +
                 "c.daily AS confirmedDaily, " +
@@ -152,7 +166,7 @@ public class ConfirmedService {
                 params,
                 new BeanPropertyRowMapper<>(TableRecordDto.class));
 
-        // 6. 包裝成 Spring 的 Page 返回
+        // 7. 包裝成 Spring 的 Page 返回
         Pageable pageable = PageRequest.of(page, size);
         return new PageImpl<>(records, pageable, total);
     }

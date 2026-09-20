@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.covid_19.dto.TableRecordDto;
 import com.example.covid_19.service.ConfirmedService;
 
+import jakarta.validation.constraints.Min;
+
 @RestController
 @RequestMapping("/api/covid/table")
 public class TableController {
@@ -29,8 +31,8 @@ public class TableController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) List<Long> geographyIds,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "0") @Min(value = 0, message = "頁碼 (page) 必須大於或等於 0") int page,
+            @RequestParam(defaultValue = "10") @Min(value = 1, message = "每頁筆數 (size) 必須大於 0") int size,
             @RequestParam(required = false) List<String> sort) {
 
         return confirmedService.getTablePage(startDate, endDate, geographyIds, page, size, sort);
