@@ -1,33 +1,54 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# ==========================================
+# 1. 全域 / 作業系統暫存檔 (Global / OS)
+# ==========================================
+.DS_Store
+Thumbs.db
+*.log
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+# ==========================================
+# 2. 後端專案：Spring Boot (位於 backend/)
+# ==========================================
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/build/
+backend/*.class
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
+# 後端 IDE 與工具設定 (IntelliJ IDEA / Eclipse / STS)
+backend/.idea/
+backend/*.iml
+backend/*.iws
+backend/*.ipr
+backend/.classpath
+backend/.project
+backend/.settings/
+backend/.factorypath
+backend/.springBeans
+backend/.sts4-cache
+backend/.sts-sync-lock
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+# ==========================================
+# 3. 前端專案：Vue 3 / Vite (位於 frontend/)
+# ==========================================
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/coverage/
+frontend/*.local
+frontend/.tsbuildinfo
+frontend/.eslintcache
 
-### VS Code ###
-.vscode/
+# 前端 IDE / Editor 設定
+frontend/.vscode/*
+!frontend/.vscode/extensions.json
+frontend/.idea/
+frontend/*.suo
+frontend/*.ntvs*
+frontend/*.njsproj
+frontend/*.sln
+frontend/*.sw?
+
+# 前端測試與暫存
+frontend/cypress/videos/
+frontend/cypress/screenshots/
+frontend/__screenshots__/
+frontend/*.timestamp-*-*.mjs
