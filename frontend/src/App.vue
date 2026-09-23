@@ -2,6 +2,26 @@
   <div class="covid-container">
     <h2>COVID-19 數據儀表板</h2>
 
+    <!-- 0. 頂部總覽卡片(Summary 和 Daily) -->
+    <div class="summary-container">
+      <div class="summary-card">
+        <h4>確診累計總數 (Summary)</h4>
+        <p class="summary-value">{{ summaryData.totalConfirmed.toLocaleString() }}</p>
+      </div>
+      <div class="summary-card">
+        <h4>最近日期當日確診 (Daily)</h4>
+        <p class="summary-value">{{ summaryData.latestConfirmedDaily.toLocaleString() }}</p>
+      </div>
+      <div class="summary-card">
+        <h4>死亡累計總數 (Summary)</h4>
+        <p class="summary-value">{{ summaryData.totalDeaths.toLocaleString() }}</p>
+      </div>
+      <div class="summary-card">
+        <h4>最近日期當日死亡 (Daily)</h4>
+        <p class="summary-value">{{ summaryData.latestDeathsDaily.toLocaleString() }}</p>
+      </div>
+    </div>
+
     <!-- 1. 搜尋與篩選表單 -->
     <div class="filter-bar">
       <label>
@@ -24,26 +44,30 @@
       {{ errorMessage }}
     </div>
 
-    <!-- 2. 資料表格 -->
+    <!-- 2. 資料表格 (分頁與排序) -->
     <table class="data-table">
       <thead>
         <tr>
-          <th @click="handleSort('updated_on')">
-            更新日期 <span v-html="getSortIcon('updated_on')"></span>
+          <th @click="handleSort('updatedOn')">
+            更新日期 <span v-html="getSortIcon('updatedOn')"></span>
           </th>
-          <th @click="handleSort('country_region')">國家/地區 <span v-html="getSortIcon('country_region')"></span></th>
-          <th @click="handleSort('province_state')">省份/州 <span v-html="getSortIcon('province_state')"></span></th>
-          <th @click="handleSort('confirmed_daily')">
-            當日確診 <span v-html="getSortIcon('confirmed_daily')"></span>
+          <th @click="handleSort('countryRegion')">
+            國家/地區 <span v-html="getSortIcon('countryRegion')"></span>
           </th>
-          <th @click="handleSort('confirmed_cumulative')">
-            確診累計 <span v-html="getSortIcon('confirmed_cumulative')"></span>
+          <th @click="handleSort('provinceState')">
+            省份/州 <span v-html="getSortIcon('provinceState')"></span>
           </th>
-          <th @click="handleSort('deaths_daily')">
-            當日死亡 <span v-html="getSortIcon('deaths_daily')"></span>
+          <th @click="handleSort('confirmedDaily')">
+            當日確診 <span v-html="getSortIcon('confirmedDaily')"></span>
           </th>
-          <th @click="handleSort('deaths_cumulative')">
-            死亡累計 <span v-html="getSortIcon('deaths_cumulative')"></span>
+          <th @click="handleSort('confirmedCumulative')">
+            確診累計 <span v-html="getSortIcon('confirmedCumulative')"></span>
+          </th>
+          <th @click="handleSort('deathsDaily')">
+            當日死亡 <span v-html="getSortIcon('deathsDaily')"></span>
+          </th>
+          <th @click="handleSort('deathsCumulative')">
+            死亡累計 <span v-html="getSortIcon('deathsCumulative')"></span>
           </th>
         </tr>
       </thead>
@@ -86,11 +110,7 @@
 <script setup>
 import axios from 'axios'
 import { onMounted, reactive, ref } from 'vue'
-// 點擊查詢按鈕時的處理函式
-const handleSearch = () => {
-  pageInfo.number = 0 // 💡 每次按查詢，強制回到第一頁！
-  fetchData()         // 重新發送 API 請求
-}
+
 // 搜尋參數
 const searchParams = reactive({
   startDate: '2020-01-01',
@@ -98,41 +118,83 @@ const searchParams = reactive({
   geographyIds: ''
 })
 
-// 分頁與資料狀態
+// 頂部總覽卡片 狀態資料
+const summaryData = reactive({
+  totalConfirmed: 0,
+  latestConfirmedDaily: 0,
+  totalDeaths: 0,
+  latestDeathsDaily: 0
+})
+
+// 分頁與表格資料狀態
 const tableData = ref([])
 const loading = ref(false)
 const errorMessage = ref('')
 
 const pageInfo = reactive({
-  number: 0,        // 當前頁碼 (對應後端 page=0)
-  size: 10,         // 每頁筆數
-  totalPages: 0,    // 總頁數
+  number: 0,    // 當前頁碼 (對應後端 page=0)
+  size: 10,     // 每頁筆數
+  totalPages: 0,  // 總頁數
   totalElements: 0, // 總筆數
   first: true,
   last: true
 })
 
-// 排序狀態 (支援多重排序或單欄位狀態追蹤)
-// 格式: [{ field: 'updated_on', direction: 'desc' }]
+// 排序狀態追蹤
 const sorts = ref([])
 
-// 取得資料 API 呼叫
-const fetchData = async () => {
+// 💡 呼叫專屬 API 取得頂部 頂部總覽卡片 數據 (整合 Summary 與 Daily API)
+const fetchSummaryData = async () => {
+  try {
+    let geoIdsParam = searchParams.geographyIds.trim() !== '' ? searchParams.geographyIds : undefined
+    const targetDate = searchParams.endDate || '2020-03-01' // 預設以結束日期作為單日查詢基準
+
+    // 同時發送 4 個專屬 API 請求
+    const [confSumRes, deathSumRes, confDailyRes, deathDailyRes] = await Promise.all([
+      axios.get('/api/confirmed/summary', {
+        params: { startDate: searchParams.startDate, endDate: searchParams.endDate, geographyIds: geoIdsParam },
+        paramsSerializer: { indexes: null }
+      }),
+      axios.get('/api/deaths/summary', {
+        params: { startDate: searchParams.startDate, endDate: searchParams.endDate, geographyIds: geoIdsParam },
+        paramsSerializer: { indexes: null }
+      }),
+      axios.get('/api/confirmed/daily', {
+        params: { date: targetDate, geographyIds: geoIdsParam },
+        paramsSerializer: { indexes: null }
+      }),
+      axios.get('/api/deaths/daily', {
+        params: { date: targetDate, geographyIds: geoIdsParam },
+        paramsSerializer: { indexes: null }
+      })
+    ])
+
+    // 對應後端回傳的數值 
+    summaryData.totalConfirmed = confSumRes.data.totalDailySum ?? confSumRes.data.sum ?? 0
+    summaryData.totalDeaths = deathSumRes.data.totalDailySum ?? deathSumRes.data.sum ?? 0
+    summaryData.latestConfirmedDaily = confDailyRes.data.dailySum ?? confDailyRes.data.value ?? 0
+    summaryData.latestDeathsDaily = deathDailyRes.data.dailySum ?? deathDailyRes.data.value ?? 0
+
+  } catch (error) {
+    console.error('取得 總覽數據失敗:', error)
+  }
+}
+
+// 💡 取得分頁表格資料 API 呼叫
+const fetchTableData = async () => {
   loading.value = true
   errorMessage.value = ''
 
   try {
-    // 處理 geographyIds 字串轉陣列 (例如 "1, 2, 3" -> [1, 2, 3])
     let geoIdsParam = null
     if (searchParams.geographyIds.trim() !== '') {
       geoIdsParam = searchParams.geographyIds
         .split(',')
         .map(id => id.trim())
         .filter(id => id !== '')
-        .join(',') // Axios 陣列傳遞參數格式
+        .join(',')
     }
 
-    // 組裝 Sort 參數格式 (Spring 接收的格式如: ?sort=updated_on,desc&sort=confirmed_daily,asc)
     const sortParams = sorts.value.map(s => `${s.field},${s.direction}`)
 
     const response = await axios.get('/api/covid/table', {
@@ -142,24 +204,20 @@ const fetchData = async () => {
         geographyIds: geoIdsParam || undefined,
         page: pageInfo.number,
         size: pageInfo.size,
-        sort: sortParams.length > 0 ? sortParams : undefined // 👈 如果沒選排序就傳 undefined，交由 Spring Boot 預設處理
+        sort: sortParams.length > 0 ? sortParams : undefined
       },
-      // 確保陣列參數可以用逗號正確序列化
       paramsSerializer: { indexes: null }
     })
-    console.log('後端回傳的原始資料:', response.data)
 
-    //對應 Spring Data 的 Page 結構回傳 (若有啟用 VIA_DTO 或預設 Page 結構)
     const data = response.data
     tableData.value = data.content || data.data || []
-    // 💡 修正這裡：改從 data.page 裡面抓取分頁數據
+
     if (data.page) {
       pageInfo.number = data.page.number ?? 0
       pageInfo.size = data.page.size ?? 10
       pageInfo.totalPages = data.page.totalPages ?? 0
       pageInfo.totalElements = data.page.totalElements ?? 0
 
-      // 判斷是否為第一頁或最後一頁，用來控制按鈕能不能點擊
       pageInfo.first = data.page.number === 0
       pageInfo.last = data.page.number >= pageInfo.totalPages - 1
     }
@@ -167,7 +225,6 @@ const fetchData = async () => {
   } catch (error) {
     console.error('API 請求失敗:', error)
     if (error.response && error.response.data) {
-      // 抓取後端 GlobalExceptionHandler 回傳的自定義 message
       errorMessage.value = error.response.data.message || '發生未知錯誤'
     } else {
       errorMessage.value = '無法連線至伺服器，請檢查網路或後端狀態'
@@ -178,17 +235,25 @@ const fetchData = async () => {
   }
 }
 
+// 點擊查詢按鈕時的處理函式
+const handleSearch = () => {
+  pageInfo.number = 0 // 每次按查詢，強制回到第一頁！
+  sorts.value = []    // 💡 新增這行：按查詢時清空所有排序條件
+  fetchTableData()         // 重新發送表格 API 請求
+  fetchSummaryData()      // 同步更新 頂部總覽卡片 數據
+}
+
 // 換頁動作
 const changePage = (newPage) => {
   if (newPage < 0 || newPage >= pageInfo.totalPages) return
   pageInfo.number = newPage
-  fetchData()
+  fetchTableData()
 }
 
 // 改變每頁筆數
 const handleSizeChange = () => {
-  pageInfo.number = 0 // 切換筆數時重置回第一頁
-  fetchData()
+  pageInfo.number = 0
+  fetchTableData()
 }
 
 // 點擊表頭排序
@@ -198,14 +263,12 @@ const handleSort = (field) => {
     if (existing.direction === 'asc') {
       existing.direction = 'desc'
     } else {
-      // 如果已經是 desc，則移除排序
       sorts.value = sorts.value.filter(s => s.field !== field)
     }
   } else {
-    // 新增排序，預設先 asc
     sorts.value.push({ field, direction: 'asc' })
   }
-  fetchData()
+  fetchTableData()
 }
 
 // 顯示排序圖示
@@ -217,7 +280,8 @@ const getSortIcon = (field) => {
 
 // 初始化載入
 onMounted(() => {
-  fetchData()
+  fetchTableData()
+  fetchSummaryData()
 })
 </script>
 
@@ -227,6 +291,36 @@ onMounted(() => {
   margin: 20px auto;
   font-family: Arial, sans-serif;
   padding: 20px;
+}
+
+/* 頂部總覽卡片 樣式 */
+.summary-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.summary-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  text-align: center;
+}
+
+.summary-card h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.summary-value {
+  margin: 0;
+  font-size: 24px;
+  font-weight: bold;
+  color: #2c3e50;
 }
 
 .filter-bar {

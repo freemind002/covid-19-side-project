@@ -109,16 +109,32 @@ public class ConfirmedService {
             throw new IllegalArgumentException("目前查無資料，頁碼只能為 0");
         }
 
-        // 5. 處理排序邏輯 (同前)
+        // 5. 修正後的排序解析邏輯（支援 [field, desc] 或 [field,asc] 的陣列結構）
         List<String> orderClauses = new ArrayList<>();
         if (sortParams == null || sortParams.isEmpty()) {
             orderClauses.add("c.updated_on ASC");
             orderClauses.add("c.geography_id ASC");
         } else {
-            for (String param : sortParams) {
-                String[] parts = param.split(",");
-                String field = parts[0].trim();
-                String direction = (parts.length > 1 && "desc".equalsIgnoreCase(parts[1].trim())) ? "DESC" : "ASC";
+            // 因為參數可能是 ["updatedOn", "desc"] 這種成對的結構
+            for (int i = 0; i < sortParams.size(); i++) {
+                String field = sortParams.get(i).trim();
+                String direction = "ASC"; // 預設升冪
+
+                // 如果下一個元素剛好是 asc 或 desc，把它當作方向吃掉
+                if (i + 1 < sortParams.size()) {
+                    String next = sortParams.get(i + 1).trim();
+                    if ("asc".equalsIgnoreCase(next) || "desc".equalsIgnoreCase(next)) {
+                        direction = next.toUpperCase();
+                        i++; // 略過下一個元素，因為已經被當作方向使用了解析
+                    }
+                } else if (field.contains(",")) {
+                    // 也有可能有些情況是 "updatedOn,desc" 黏在同一個字串裡，這裡也做個防呆
+                    String[] parts = field.split(",");
+                    field = parts[0].trim();
+                    if (parts.length > 1 && "desc".equalsIgnoreCase(parts[1].trim())) {
+                        direction = "DESC";
+                    }
+                }
 
                 String dbColumn = switch (field) {
                     case "updated_on", "updatedOn" -> "c.updated_on";
