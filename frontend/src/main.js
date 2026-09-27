@@ -8,7 +8,7 @@ import { useAuthStore } from "./stores/auth";
 const app = createApp(App);
 const pinia = createPinia(); // 👈 2. 建立 Pinia 實例
 
-// 務必在挂載或使用 Store 之前，先註冊 pinia 和 router
+// 在挂載或使用 Store 之前，先註冊 pinia 和 router
 app.use(pinia); // 👈 3. 註冊 Pinia
 app.use(router); // 👈 4. 註冊 Router
 
@@ -19,6 +19,7 @@ axios.interceptors.request.use(
     if (authStore.token) {
       // 自動將 Token 塞入 Authorization Header
       config.headers.Authorization = `Bearer ${authStore.token}`;
+      console.log("即將送出的 Authorization:", `Bearer ${authStore.token}`);
     }
     return config;
   },
