@@ -2,7 +2,7 @@ package com.example.covid_19.config.security;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.crypto.SecretKey;
@@ -25,12 +25,15 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtTokenFilter extends OncePerRequestFilter {
 
-    @Value("${jwt.secret}") // 確整 application.properties 有設定 jwt.secret
+    @Value("${jwt.secret}")
     private String jwtSecret;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+
+        // 💡 1. 第一行印出：確保這個過濾器確實有在跑每一個請求
+        System.out.println(">>> 【JwtTokenFilter 啟動】請求路徑: " + request.getRequestURI());
 
         String header = request.getHeader("Authorization");
 
@@ -45,22 +48,30 @@ public class JwtTokenFilter extends OncePerRequestFilter {
                         .getBody();
 
                 String username = claims.getSubject();
-                String role = claims.get("role", String.class);
+                System.out.println(">>> 【JWT 解析成功】使用者: " + username);
+
+                List<String> permissionCodes = claims.get("permissions", List.class);
 
                 if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    List<SimpleGrantedAuthority> authorities = Collections
-                            .singletonList(new SimpleGrantedAuthority("ROLE_" + role));
+                    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 
-                    // 告訴 Spring Security 這個使用者已經通過驗證了
+                    if (permissionCodes != null) {
+                        for (String perm : permissionCodes) {
+                            authorities.add(new SimpleGrantedAuthority(perm));
+                        }
+                    }
+
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             username, null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+                    System.out.println(">>> 【SecurityContext 已授權】權限清單: " + authorities);
                 }
             } catch (Exception e) {
-                System.out.println("【JWT 驗證失敗】原因: " + e.getClass().getName() + " - " + e.getMessage());
-                // Token 驗證失敗就清空 Context
+                System.out.println(">>> 【JWT 驗證失敗】原因: " + e.getClass().getName() + " - " + e.getMessage());
                 SecurityContextHolder.clearContext();
             }
+        } else {
+            System.out.println(">>> 【JwtTokenFilter】沒有抓到 Authorization Header 或格式不符");
         }
 
         filterChain.doFilter(request, response);
