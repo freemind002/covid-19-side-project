@@ -1,18 +1,37 @@
-<!-- src/App.vue -->
 <template>
-  <!-- 這裡就像一個動態視窗，當網址切換時，Vue Router 會自動把對應的 View 塞進這裡 -->
-  <router-view />
+  <div id="app">
+    <!-- 頂部導覽列（這條橫幅在切換 /dashboard 和 /covid 時都會一直存在） -->
+    <nav class="navbar">
+      <router-link to="/dashboard">主儀表板</router-link> |
+      <router-link to="/covid">COVID-19 資料修改</router-link>
+    </nav>
+
+    <!-- 這裡才是動態切換頁面的地方 -->
+    <main class="main-content">
+      <router-view />
+    </main>
+  </div>
 </template>
 
-<script setup>
-// App.vue 變得非常簡單，通常只需要放共用的全域樣式或初始化邏輯
-</script>
-
 <style>
-/* 全域共用樣式可以放這裡 */
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: #f4f6f8;
+.navbar {
+  padding: 15px 20px;
+  background-color: #2d3748;
+  color: white;
+}
+
+.navbar a {
+  color: white;
+  text-decoration: none;
+  margin-right: 15px;
+  font-weight: bold;
+}
+
+.navbar a.router-link-exact-active {
+  color: #63b3ed;
+}
+
+.main-content {
+  padding: 20px;
 }
 </style>

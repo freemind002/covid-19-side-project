@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import AdminView from "../views/AdminView.vue";
+import CovidView from "../views/CovidView.vue";
 import DashboardView from "../views/DashboardView.vue";
 import LoginView from "../views/LoginView.vue";
 
@@ -18,6 +19,12 @@ const routes = [
     name: "AdminUsers",
     component: AdminView,
     meta: { requiresAuth: true, requiresAdmin: true }, // 👈 標記需要 Admin 權限
+  },
+  {
+    path: "/covid",
+    name: "CovidView",
+    component: CovidView,
+    meta: { requiresAuth: true },
   },
 ];
 

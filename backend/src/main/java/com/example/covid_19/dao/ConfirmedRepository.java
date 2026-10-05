@@ -2,6 +2,7 @@ package com.example.covid_19.dao;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -58,4 +59,9 @@ public interface ConfirmedRepository extends JpaRepository<Confirmed, ConfirmedI
                         @Param("hasGeographyIds") int hasGeographyIds,
                         @Param("geographyIds") List<Long> geographyIds,
                         Pageable pageable);
+
+        // 配合你的 Model 屬性名稱：geographyId 與 updatedOn
+        Optional<Confirmed> findByGeographyIdAndUpdatedOn(Long geographyId, LocalDate updatedOn);
+
+        List<Confirmed> findByGeographyIdAndUpdatedOnBetween(Long geographyId, LocalDate startDate, LocalDate endDate);
 }
